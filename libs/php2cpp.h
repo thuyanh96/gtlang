@@ -61,9 +61,9 @@ typedef map<long, tokens_line> tokens_line_arr;
 struct tokens_line1 {
 public:
 	tokens_line $0;
-	long $1;
+	long $1; //level
 };
-typedef map<long, tokens_line1> tokens_arr;
+typedef map<long, tokens_line1> tokens_line1_arr;
 string ts(long _input) {
 	return to_string(_input);
 }
@@ -945,5 +945,8 @@ void signal_handler(int _signal_num) {
 // end;
 	throw _signal_num;
 //terminate();
+}
+bool is_array(Mixed _mixed) {
+	return (_mixed.type == "a");
 }
 #endif /* SRC_CORE_PHP2CPP_H_ */

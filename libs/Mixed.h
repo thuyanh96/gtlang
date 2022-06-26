@@ -87,7 +87,7 @@ public:
 		this->valueArray["1"] = new Mixed(value.$1);
 		this->type = "a";
 	}
-	Mixed(const tokens_arr value) {
+	Mixed(const tokens_line1_arr value) {
 		for (auto [_k, _v] : value) {
 			this->valueArray[to_string(_k)] = new Mixed((tokens_line1) _v);
 		}
