@@ -8,23 +8,6 @@
 #ifndef SRC_CORE_PHP2CPP_H_
 #define SRC_CORE_PHP2CPP_H_
 
-#include <iostream>
-#include <stdlib.h>
-#include <math.h>
-#include <map>
-#include <unordered_map>
-#include <string>
-#include <chrono>
-#include <variant>
-#include <algorithm>
-#include <regex>
-#include <boost/algorithm/string.hpp>
-#include <ctime>
-#include <filesystem>
-#include <fstream>
-#include <csignal>
-#include <boost/algorithm/string/replace.hpp>
-
 using namespace std;
 
 typedef map<long, string> arr_ls;
@@ -37,6 +20,7 @@ typedef map<string, string> arr_ss;
 typedef map<string, long> arr_sl;
 typedef map<long, map<long, long>> arr_lll;
 
+class Mixed;
 struct token {
 public:
 	string $0;
@@ -48,6 +32,10 @@ public:
 	token() {
 		this->$0 = "";
 		this->$1 = "";
+	}
+	token(Mixed _mixed) {
+		this->$0 = _mixed[""];
+		this->$1 = _mixed[""];
 	}
 	bool operator==(const token &other_token) {
 		if (this->$0 == other_token.$0 && this->$1 == other_token.$1)
@@ -367,8 +355,8 @@ unordered_map<long, string> array_sliceu(map<long, string> _arr, long _start,
 }
 double microtime(bool i = true) {
 	using namespace std::chrono;
-	long long _d = duration_cast<nanoseconds>(
-			system_clock::now().time_since_epoch()).count();
+	long long _d = duration_cast < nanoseconds
+			> (system_clock::now().time_since_epoch()).count();
 	double _res = (double) _d / 1000000000.f;
 	return _res;
 }
@@ -642,7 +630,8 @@ string substr(string _str, long _start, long _length = 0) {
 			|| (_start + _length) > ((long) _str.length() - 1))
 		return "";
 	if (_length == 0)
-		return _str.substr(_start);;
+		return _str.substr(_start);
+	;
 	return _str.substr(_start, _length);
 }
 arr_ls str_split(string _str, long _num = 1) {
@@ -667,8 +656,7 @@ arr_ls str_split(string _str, long _num = 1) {
 //}
 
 long random_int(long _start, long _end) {
-	srand(time(NULL));
-	long _minus = _end - _start + 1;
+	srand (time(NULL));long _minus = _end - _start + 1;
 	return (rand() % _minus + _start);
 }
 string shell_exec(string _cmd) {
@@ -895,7 +883,8 @@ arr_ll array_unique(arr_ll _arr) {
 	for (auto const& [_k, _v] : _arr) {
 		if (!in_array(_v, _res))
 			array_push(_res, _v);
-	};
+	}
+	;
 	return _res;
 }
 arr_ls array_unique(arr_ls _arr) {
@@ -903,7 +892,8 @@ arr_ls array_unique(arr_ls _arr) {
 	for (auto const& [_k, _v] : _arr) {
 		if (!in_array(_v, _res))
 			array_push(_res, _v);
-	};
+	}
+	;
 	return _res;
 }
 arr_ls array_unique(arr_ss _arr) {
@@ -911,7 +901,8 @@ arr_ls array_unique(arr_ss _arr) {
 	for (auto const& [_k, _v] : _arr) {
 		if (!in_array(_v, _res))
 			array_push(_res, _v);
-	};
+	}
+	;
 	return _res;
 }
 template<typename T>
@@ -945,8 +936,5 @@ void signal_handler(int _signal_num) {
 // end;
 	throw _signal_num;
 //terminate();
-}
-bool is_array(Mixed _mixed) {
-	return (_mixed.type == "a");
 }
 #endif /* SRC_CORE_PHP2CPP_H_ */

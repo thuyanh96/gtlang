@@ -1,9 +1,5 @@
-#include<iostream>
-#include<math.h>
-#include<string>
-#include<unordered_map>
-#include<map>
-#include<php2cpp.h>
+#ifndef LIB_MIXED_H_
+#define LIB_MIXED_H_
 
 using namespace std;
 
@@ -428,8 +424,8 @@ public:
 	operator token() {
 		token _return;
 		try {
-			_return.$0 = (string) *(this->valueArray)["0"];
-			_return.$1 = (string) *(this->valueArray)["1"];
+			_return.$0 = (string) * (this->valueArray)["0"];
+			_return.$1 = (string) * (this->valueArray)["1"];
 			return _return;
 		} catch (...) {
 			return token();
@@ -563,4 +559,5 @@ Mixed replace_placeholders_recruisively(Mixed _arr,
 	}
 	return _arr;
 }
+#endif //LIB_MIXED_H_
 

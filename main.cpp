@@ -7,8 +7,7 @@
 
 #include <iostream>
 #include <cstring>
-#include <Mixed.h>
-#include <php2cpp.h>
+#include <libs.h>
 
 using namespace std;
 
@@ -2162,25 +2161,31 @@ void assign_var(string var, Mixed value) {
 //	Mixed _return;
 //	return _return;
 //}
-Mixed _global_vars, _local_vars;
-long _current_func_lv = 0;
-long _break, _continue = 0;
-Mixed gt_eval (Mixed $parsed){
+Mixed __global_vars, __local_vars;
+long __current_func_lv = 0;
+long __break, __continue = 0;
+Mixed find_operator_in_expr(Mixed $expr);
+Mixed gt_do(string $opt, token $params, long $opt_pos);
+Mixed create_array_var(Mixed $parsed);
+Mixed get_value(Mixed $value);
+Mixed get_var_global_value(Mixed $value);
+Mixed call_function(Mixed $parsed);
+Mixed gt_eval(Mixed $parsed) {
 	Mixed $find_result;
 	Mixed $result;
 	Mixed $backup_vars;
-	if (!is_array($parsed))
+	if (!php_is_array($parsed))
 		return $parsed;
-	if (in_array ( $parsed ["type"], [ "number","string"
-			] ))
+	if (in_array($parsed["type"], { { 0, "number" }, { 1, "string" } }))
 		return $parsed["name"];
 	if ($parsed["type"] == "expr") {
 		if (sizeof($parsed["body"]) == 1) {
-			return gt_eval($parsed["body"].$0);
+			return gt_eval($parsed["body"][0]);
 		} else {
 			$find_result = find_operator_in_expr($parsed);
-			$result = gt_do($find_result["operator"], $find_result["expr"],
-					$find_result["opt_pos"]);
+			$result = gt_do($find_result["operator"].valueStr,
+					token($find_result["expr"]),
+					$find_result["opt_pos"].valueNum);
 			return $result;
 		}
 	}
@@ -2194,10 +2199,10 @@ Mixed gt_eval (Mixed $parsed){
 		return get_var_global_value($parsed);
 	}
 	if ($parsed["type"] == "function") {
-		$backup_vars = $local_vars;
+		$backup_vars = __local_vars;
 		// $current_func_lv ++;
 		$result = call_function($parsed);
-		$local_vars = $backup_vars;
+		__local_vars = $backup_vars;
 		// $current_func_lv --;
 		return $result;
 	}
@@ -2215,32 +2220,8 @@ Mixed gt_eval (Mixed $parsed){
 	throw("unsupported expr");
 }
 
-Mixed* get_ref_of_element(Mixed $value_name, Mixed $value_key) {
-	Mixed $name;
-	Mixed $key;
-	Mixed $ref;
-	Mixed $return;
-	if ($value_name["type"] == "expr") {
-		return get_ref_of_element($value_name["body"], $value_key);
-	} else if ($value_name["type"] == "var") {
-		$name = &get_ref_single($value_name, Mixed());
-		$key = gt_eval($value_key);
-		return $name[$key];
-	} else if ($value_name["type"] == "complex_value") {
-
-		$ref = &get_ref_of_element($value_name["name"], $value_name["key"]);
-
-		$key = gt_eval($value_key);
-		if (isset($ref[$key])) {
-			$return = &$ref[$key];
-		} else {
-			$ref[$key] = null;
-			$return = &$ref[$key];
-		}
-		return $return;
-	} else {
-		throw("not valid left side of assignment");
-	}
+Mixed& get_ref_of_element(Mixed $value_name, Mixed $value_key) {
+	return;
 }
 Mixed assign_var(Mixed $var, Mixed $value) {
 	Mixed $var_name;
@@ -2268,7 +2249,7 @@ Mixed assign_var(Mixed $var, Mixed $value) {
 	} else
 		throw("not valid left side of assignment");
 }
-function& get_ref_single($value_name, $default_value_if_var_not_exist = null) {
+Mixed& get_ref_single($value_name, $default_value_if_var_not_exist = null) {
 	if ($value_name["type"] == "var") {
 		$var_name = $value_name["name"];
 		if ($GLOBALS["current_func_lv"] == 0) {
@@ -2304,7 +2285,7 @@ Mixed get_value(Mixed $value) {
 		return $result[gt_eval($value["key"])];
 	}
 }
-function& ref_var($var_complex) {
+Mixed& ref_var($var_complex) {
 	if ($var_complex["type"] == "var") {
 		$var_name = $var_complex["name"];
 		if ($GLOBALS["current_func_lv"] == 0) {
@@ -2325,207 +2306,208 @@ void gt_exec(Mixed $parsed) {
 	-;
 	Mixed $answer_var;
 	if ($parsed["type"] == "block" || $parsed["type"] == "inline_block") {
-		for( auto const& [$key_rtt, $cmd ]: $parsed ["body) {
-				if ($break > 0 || $break > 0) {
-					// $break --;
-					return 1;
-				}
-				if ($cmd["type"] == "block" || $cmd["type"] == "inline_block") {
-					gt_exec($cmd);
-					continue;
-				} else if ($cmd["type"] == "ifs") {
-				for( auto const& [$key_rtt, $if ]: $cmd ["ifs) {
-						if (gt_eval ( $if ["condition"] )) {
-							gt_exec ( $if ["body"] );
-							break;
-						}
-					}
-					gt_exec($cmd["else"]);
-				} else if ($cmd["type"] == "for") {
-					gt_eval($cmd["init"]);
-					while (true) {
-						if ($break) {
-							$break = 0;
-							break;
-						}
-						if ($continue > 1) {
-							$continue--;
-							break;
-						}
-						if ($continue == 1) {
-							$break--;
-							continue;
-						}
-						gt_eval($cmd["increment"]);
-						gt_exec($cmd["body"]);
-						if (!gt_eval($cmd["terminate"]))
-							break;
-					}
-				} else if ($cmd["type"] == "while") {
-					while (true) {
-						if (!gt_eval($cmd["condition"]))
-							break;
-						if ($break > 0) {
-							$break--;
-							break;
-						}
-						if ($continue > 1) {
-							$continue--;
-							break;
-						}
-						if ($continue == 1) {
-							$break--;
-							continue;
-						}
-						gt_exec($cmd["body"]);
-					}
-				} else if ($cmd["type"] == "try") {
-					try {
-						gt_exec($cmd["body"]);
-					} catch (GTException $e) {
-						$is_catched = false;
-					for( auto const& [$key_rtt, $ catch ]: $cmd ["catch) {
-							if (strpos ( $e->getMessage (), $ catch ["exception_class"] + ":" ) == 0) {
-								assign_var ( $ catch ["catch_var"], $e );
-								gt_exec ( $ catch ["body"] );
-								$is_catched = true;
-								break;
-							}
-						}
-						if (!$is_catched)
-							throw("not catched");
-					}
-				}
-				else if (isset ( $cmd ["body"] ) && $cmd ["body"] .$0 == [ "name" => "break","type" => "keyword"
-						]) {
-					if (sizeof ( $cmd ["body"] ) == 1) {
-						$break = 1;
-						return 0;
-					} else if (sizeof ( $cmd ["body"] ) == 2 && $cmd ["body"] .$1 ["type"] == "number") {
-						$break = $cmd ["body"] .$1 ["name"];
-						return 0;
-					} else
-					throw ( "incorrect break" );
-				} else if (isset ( $cmd ["body"] ) && $cmd ["body"] .$0 == [ "name" => "continue","type" => "keyword"
-						]) {
-					if (sizeof ( $cmd ["body"] ) == 1) {
-						$continue = 1;
-						return 0;
-					} else if (sizeof ( $cmd ["body"] ) == 2 && $cmd ["body"] .$1 ["type"] == "number") {
-						$break = $cmd ["body"] .$1 ["name"];
-						return 0;
-					} else
-					throw ( "incorrect break" );
-				} else {
-					assign_var ( [ "name" => "\$answer_var","type" => "var"
-							], gt_eval ( $cmd ) );
-				}
+		for (auto const& [$key_rtt, $cmd] : $parsed["body"]) {
+			if ($break > 0 || $break > 0) {
+				// $break --;
+				return 1;
 			}
+			if ($cmd["type"] == "block" || $cmd["type"] == "inline_block") {
+				gt_exec($cmd);
+				continue;
+			} else if ($cmd["type"] == "ifs") {
+				for (auto const& [$key_rtt, $if] : $cmd["ifs"]) {
+					if (gt_eval($if["condition"])) {
+						gt_exec($if["body"]);
+						break;
+					}
+				}
+				gt_exec($cmd["else"]);
+			} else if ($cmd["type"] == "for") {
+				gt_eval($cmd["init"]);
+				while (true) {
+					if ($break) {
+						$break = 0;
+						break;
+					}
+					if ($continue > 1) {
+						$continue--;
+						break;
+					}
+					if ($continue == 1) {
+						$break--;
+						continue;
+					}
+					gt_eval($cmd["increment"]);
+					gt_exec($cmd["body"]);
+					if (!gt_eval($cmd["terminate"]))
+						break;
+				}
+			} else if ($cmd["type"] == "while") {
+				while (true) {
+					if (!gt_eval($cmd["condition"]))
+						break;
+					if ($break > 0) {
+						$break--;
+						break;
+					}
+					if ($continue > 1) {
+						$continue--;
+						break;
+					}
+					if ($continue == 1) {
+						$break--;
+						continue;
+					}
+					gt_exec($cmd["body"]);
+				}
+			} else if ($cmd["type"] == "try") {
+				try {
+					gt_exec($cmd["body"]);
+				} catch (GTException $e) {
+					$is_catched = false;
+					for (auto const& [$key_rtt, _catch] : $cmd["catch"]) {
+						if (strpos ( $e->getMessage (), $ catch ["exception_class"] + ":" ) == 0) {
+							assign_var(_catch["catch_var"], $e);
+							gt_exec(_catch["body"]);
+							$is_catched = true;
+							break;
+						}
+					}
+					if (!$is_catched)
+						throw("not catched");
+				}
+			} else if (isset ( $cmd ["body"] ) && $cmd ["body"] .$0 == [ "name" => "break","type" => "keyword"
+			]) {
+				if (sizeof($cmd["body"]) == 1) {
+					$break = 1;
+					return 0;
+				} else if (sizeof($cmd["body"]) == 2
+						&& $cmd["body"].$1["type"] == "number") {
+					$break = $cmd["body"].$1["name"];
+					return 0;
+				} else
+					throw("incorrect break");
+			} else if (isset ( $cmd ["body"] ) && $cmd ["body"] .$0 == [ "name" => "continue","type" => "keyword"
+			]) {
+				if (sizeof($cmd["body"]) == 1) {
+					$continue = 1;
+					return 0;
+				} else if (sizeof($cmd["body"]) == 2
+						&& $cmd["body"].$1["type"] == "number") {
+					$break = $cmd["body"].$1["name"];
+					return 0;
+				} else
+					throw("incorrect break");
+			} else {
+			assign_var ( [ "name" => "\$answer_var","type" => "var"
+					], gt_eval ( $cmd ) );
 		}
 	}
-	Mixed find_operator_in_expr(Mixed $expr) {
-		long $k;
-		Mixed $obj;
-	for( auto const& [$k, $obj]: $expr ["body) {
-			if ($obj ["type"] == "operator") {
-				$expr ["body"] .erase($k);
-				return [ "operator" => $obj ["name"],"expr" => array_values ( $expr ["body"] ),"opt_pos" => $k
-				];
-			}
-		}
-		return Mixed();
-	}
-	Mixed gt_do(string $opt, token $params, long $opt_pos) {
-		Mixed $return1;
-		Mixed $return0;
-		Mixed $return;
-		if ($opt == "+") {
-			return gt_eval($params.$0) + gt_eval($params.$1);
-		} else if ($opt == "-") {
-			return gt_eval($params.$0) - gt_eval($params.$1);
-		} else if ($opt == "*") {
-			return gt_eval($params.$0) * gt_eval($params.$1);
-		} else if ($opt == "/") {
-			return gt_eval($params.$0) / gt_eval($params.$1);
-		} else if ($opt == "%") {
-			return gt_eval($params.$0) % gt_eval($params.$1);
-		} else if ($opt == "**") {
-			return gt_eval($params.$0) * *gt_eval($params.$1);
-		} else if ($opt == "&&") {
-			return gt_eval($params.$0) && gt_eval($params.$1);
-		} else if ($opt == "||") {
-			return gt_eval($params.$0) || gt_eval($params.$1);
-		} else if ($opt == "!") {
-			return !gt_eval($params.$0);
-		} else if ($opt == "==") {
-			return gt_eval($params.$0) == gt_eval($params.$1);
-		} else if ($opt == "==") {
-			return gt_eval($params.$0) == gt_eval($params.$1);
-		} else if ($opt == "<") {
-			return gt_eval($params.$0) < gt_eval($params.$1);
-		} else if ($opt == "<=") {
-			return gt_eval($params.$0) <= gt_eval($params.$1);
-		} else if ($opt == ">") {
-			return gt_eval($params.$0) > gt_eval($params.$1);
-		} else if ($opt == ">=") {
-			return gt_eval($params.$0) >= gt_eval($params.$1);
-		} else if ($opt == "!=") {
-			return gt_eval($params.$0) != gt_eval($params.$1);
-		} else if ($opt == "++") {
-			assign_var($params.$0,
-					$return1 = ($return0 = gt_eval($params.$0)) + 1);
-			if ($opt_pos == 0)
-				return $return0;
-			else
-				return $return1;
-		} else if ($opt == "--") {
-			assign_var($params.$0["name"],
-					$return1 = ($return0 = gt_eval($params.$0)) - 1);
-			if ($opt_pos == 0)
-				return $return0;
-			else
-				return $return1;
-		} else if ($opt == "+:") {
-			assign_var($params.$0["name"],
-					$return = gt_eval($params.$0) + gt_eval($params.$1));
-			return $return;
-		} else if ($opt == "-:") {
-			assign_var($params.$0["name"],
-					$return = gt_eval($params.$0) - gt_eval($params.$1));
-			return $return;
-		} else if ($opt == "*:") {
-			assign_var($params.$0["name"],
-					$return = gt_eval($params.$0) * gt_eval($params.$1));
-			return $return;
-		} else if ($opt == "/:") {
-			assign_var($params.$0["name"],
-					$return = gt_eval($params.$0) / gt_eval($params.$1));
-			return $return;
-		} else if ($opt == "%:") {
-			assign_var($params.$0["name"],
-					$return = gt_eval($params.$0) % gt_eval($params.$1));
-			return $return;
-		} else {
-			throw("unknown operator");
-		}
-	}
-	Mixed get_var_global_value(Mixed $parsed) {
-		return _global_vars[$parsed["name"]];
-	}
-	Mixed get_var_local_value(Mixed $parsed) {
-		return _local_vars[$parsed["name"]];
-	}
-	Mixed replace_get_ele_with_complex_value(Mixed $expr) {
-		long $k;
-		Mixed $v;
-		if (!is_array($expr))
-			return $expr;
-		if (isset ( $expr ["body"] .$1 ) && $expr ["body"] .$1 == [ "name" => "get_ele","type" => "operator"
-		] && sizeof ( $expr ["body"] ) == 3) {
-		$expr = [ "type" => "complex_value","name" => $expr ["body"] .$0,"key" => $expr ["body"] .$2
+}
+}
+Mixed find_operator_in_expr(Mixed $expr) {
+long $k;
+Mixed $obj;
+for( auto const& [$k, $obj]: $expr ["body) {
+	if ($obj ["type"] == "operator") {
+		$expr ["body"] .erase($k);
+		return [ "operator" => $obj ["name"],"expr" => array_values ( $expr ["body"] ),"opt_pos" => $k
 		];
 	}
-	// if (isset ( $expr ["body"] ))
+}
+return Mixed();
+}
+Mixed gt_do(string $opt, token $params, long $opt_pos) {
+Mixed $return1;
+Mixed $return0;
+Mixed $return;
+if ($opt == "+") {
+	return gt_eval($params.$0) + gt_eval($params.$1);
+} else if ($opt == "-") {
+	return gt_eval($params.$0) - gt_eval($params.$1);
+} else if ($opt == "*") {
+	return gt_eval($params.$0) * gt_eval($params.$1);
+} else if ($opt == "/") {
+	return gt_eval($params.$0) / gt_eval($params.$1);
+} else if ($opt == "%") {
+	return gt_eval($params.$0) % gt_eval($params.$1);
+} else if ($opt == "**") {
+	return gt_eval($params.$0) * *gt_eval($params.$1);
+} else if ($opt == "&&") {
+	return gt_eval($params.$0) && gt_eval($params.$1);
+} else if ($opt == "||") {
+	return gt_eval($params.$0) || gt_eval($params.$1);
+} else if ($opt == "!") {
+	return !gt_eval($params.$0);
+} else if ($opt == "==") {
+	return gt_eval($params.$0) == gt_eval($params.$1);
+} else if ($opt == "==") {
+	return gt_eval($params.$0) == gt_eval($params.$1);
+} else if ($opt == "<") {
+	return gt_eval($params.$0) < gt_eval($params.$1);
+} else if ($opt == "<=") {
+	return gt_eval($params.$0) <= gt_eval($params.$1);
+} else if ($opt == ">") {
+	return gt_eval($params.$0) > gt_eval($params.$1);
+} else if ($opt == ">=") {
+	return gt_eval($params.$0) >= gt_eval($params.$1);
+} else if ($opt == "!=") {
+	return gt_eval($params.$0) != gt_eval($params.$1);
+} else if ($opt == "++") {
+	assign_var($params.$0, $return1 = ($return0 = gt_eval($params.$0)) + 1);
+	if ($opt_pos == 0)
+		return $return0;
+	else
+		return $return1;
+} else if ($opt == "--") {
+	assign_var($params.$0["name"],
+			$return1 = ($return0 = gt_eval($params.$0)) - 1);
+	if ($opt_pos == 0)
+		return $return0;
+	else
+		return $return1;
+} else if ($opt == "+:") {
+	assign_var($params.$0["name"],
+			$return = gt_eval($params.$0) + gt_eval($params.$1));
+	return $return;
+} else if ($opt == "-:") {
+	assign_var($params.$0["name"],
+			$return = gt_eval($params.$0) - gt_eval($params.$1));
+	return $return;
+} else if ($opt == "*:") {
+	assign_var($params.$0["name"],
+			$return = gt_eval($params.$0) * gt_eval($params.$1));
+	return $return;
+} else if ($opt == "/:") {
+	assign_var($params.$0["name"],
+			$return = gt_eval($params.$0) / gt_eval($params.$1));
+	return $return;
+} else if ($opt == "%:") {
+	assign_var($params.$0["name"],
+			$return = gt_eval($params.$0) % gt_eval($params.$1));
+	return $return;
+} else {
+	throw("unknown operator");
+}
+}
+Mixed get_var_global_value(Mixed $parsed) {
+return _global_vars[$parsed["name"]];
+}
+Mixed get_var_local_value(Mixed $parsed) {
+return _local_vars[$parsed["name"]];
+}
+Mixed replace_get_ele_with_complex_value(Mixed $expr) {
+long $k;
+Mixed $v;
+if (!is_array($expr))
+	return $expr;
+if (isset ( $expr ["body"] .$1 ) && $expr ["body"] .$1 == { {"name", "get_ele"}, {"type" , "operator"
+		}}
+	&& sizeof ( $expr ["body"] ) == 3) {
+		$expr = { {"type" , "complex_value"}, {"name" , $expr ["body"] .$0}, {"key" , $expr ["body"] .$2
+			}};
+	}
+// if (isset ( $expr ["body"] ))
 	for (auto const& [$k, $v] : $expr) {
 		$expr[$k] = replace_get_ele_with_complex_value($v);
 	}
@@ -2546,7 +2528,7 @@ Mixed call_function(Mixed $parsed) {
 	long $j;
 	Mixed $passed_vars_value;
 	Mixed $passed_value;
-	// count required params;
+// count required params;
 	$function = Mixed();
 	for (auto const& [$key_rtt, $defined_func] : $funcs) {
 		if ($defined_func["name"] == $parsed["name"]) {
@@ -2557,61 +2539,58 @@ Mixed call_function(Mixed $parsed) {
 	if (!$function) {
 		try {
 			$params_str_arr = $tmp = Mixed();
-			for( auto const& [$i, $arg]: $parsed ["args) {
-					$tmp [] = gt_eval ( $arg );
-					$params_str_arr [] = "\$tmp[$i]";
-				}
-				$params_str = implode(",", $params_str_arr);
-				if ($parsed["name"] == "@echo") {
-					eval(
-							php_translate($parsed["name"]) + "(" + $params_str
-									+ ");");
-					return 0;
-				} else {
-					eval(
-							'$result = ' + php_translate($parsed["name"]) + "("
-									+ $params_str + ");");
-					return $result;
-				}
-			}
-		catch (Exception $e) {
-			throw ("function not defined");
+			for (auto const& [$i, $arg] : $parsed["args"]) {
+			$tmp [] = gt_eval ( $arg );
+			$params_str_arr [] = "\$tmp[$i]";
+		}
+		$params_str = implode(",", $params_str_arr);
+		if ($parsed["name"] == "@echo") {
+			eval(php_translate($parsed["name"]) + "(" + $params_str + ");");
+			return 0;
+		} else {
+			eval(
+					'$result = ' + php_translate($parsed["name"]) + "("
+							+ $params_str + ");");
+			return $result;
+		}
+	} catch (Exception $e) {
+		throw("function not defined");
+	}
+}
+if (sizeof($parsed["args"]) < $function["vars"]) {
+	throw("function call dont more params than function define");
+}
+$count_required_params = 0;
+for (auto const& [$key_rtt, $var] : $function["vars"]) {
+	if (isset($var.$1))
+		break;
+	$count_required_params++;
+}
+if (sizeof($parsed["args"]) < $count_required_params)
+	throw("function call dont have enough params");
+// assign called params
+for( auto const& [$k, $arg]: $parsed ["args) {
+		$var = $function ["vars"] [$k];
+		assign_var($var, gt_eval($arg));
+	}
+// assign default un-called params
+	if ($k < sizeof($function["vars"])) {
+		for ($j = $k; $j < sizeof($function["vars"]); $j++) {
+			$passed_vars_value [] = $function ["vars"] [$j] .$1;
 		}
 	}
-	if (sizeof($parsed["args"]) < $function["vars"]) {
-		throw ("function call dont more params than function define");
+	_current_func_lv++;
+	for( auto const& [$j, $passed_value]: $passed_vars_value) {
+		assign_var ( $function ["vars"] [$j] .$0, $passed_value );
 	}
-	$count_required_params = 0;
-	for( auto const& [$key_rtt, $var ]: $function ["vars) {
-			if (isset ( $var .$1 ))
-			break;
-			$count_required_params ++;
-		}
-		if (sizeof($parsed["args"]) < $count_required_params)
-		throw ("function call dont have enough params");
-		// assign called params
-		for( auto const& [$k, $arg]: $parsed ["args) {
-				$var = $function ["vars"] [$k];
-				assign_var ( $var, gt_eval ( $arg ) );
-			}
-			// assign default un-called params
-			if ($k < sizeof($function["vars"])) {
-				for ($j = $k; $j < sizeof($function["vars"]); $j++) {
-					$passed_vars_value [] = $function ["vars"] [$j] .$1;
-				}
-			}
-			_current_func_lv++;
-			for( auto const& [$j, $passed_value]: $passed_vars_value) {
-				assign_var ( $function ["vars"] [$j] .$0, $passed_value );
-			}
-			gt_exec ($function["body"]);
-			_current_func_lv--;
-		}
-		function create_array_var($parsed) {
-			$return = Mixed();
-			foreach ( $parsed ["body"] as $element ) {
-				$return [gt_eval ( $element ["key"] )] = gt_eval ( $element ["value"] );
-			}
-			return $return;
-		}
-		f
+	gt_exec ($function["body"]);
+	_current_func_lv--;
+}
+Mixed create_array_var(Mixed parsed) {
+	$return = Mixed();
+	foreach ( $parsed ["body"] as $element ) {
+		$return [gt_eval ( $element ["key"] )] = gt_eval ( $element ["value"] );
+	}
+	return $return;
+}
+f
