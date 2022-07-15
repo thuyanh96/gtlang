@@ -1,8 +1,8 @@
-main.o: ../main.cpp /var/www/html/gt/libs/libs.h \
- /var/www/html/gt/libs/php2cpp.h /var/www/html/gt/libs/Mixed.h
+main.o: ../main.cpp /home/n/gtlang/libs/libs.h \
+ /home/n/gtlang/libs/php2cpp.h /home/n/gtlang/libs/Mixed.h
 
-/var/www/html/gt/libs/libs.h:
+/home/n/gtlang/libs/libs.h:
 
-/var/www/html/gt/libs/php2cpp.h:
+/home/n/gtlang/libs/php2cpp.h:
 
-/var/www/html/gt/libs/Mixed.h:
+/home/n/gtlang/libs/Mixed.h:

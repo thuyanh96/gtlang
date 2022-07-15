@@ -73,6 +73,12 @@ public:
 		}
 		this->type = "a";
 	}
+	long getInt() {
+		return (long) this->valueNum;
+	}
+	long getLen() {
+		return this->valueArray.size();
+	}
 	Mixed(const arr_ls value) {
 		for (auto [_k, _v] : value) {
 			this->valueArray[to_string(_k)] = new Mixed((string) _v);
@@ -460,6 +466,14 @@ public:
 		this->valueArray.at(_k)->unset_r();
 		this->valueArray.erase(_k);
 	}
+	Mixed& get_ref(string key) {
+		if (this->type != "a")
+			throw "not an array to get ref";
+		return *(this->valueArray[key]);
+	}
+	bool operator==(string _compare) {
+		return (this->valueStr == _compare);
+	}
 };
 
 bool is_token(Mixed _arr) {
@@ -523,7 +537,7 @@ mixed_to_tokens_line_with_place_holders_rs mixed_to_tokens_line_with_place_holde
 	token _tmp;
 	map<string, Mixed> _map_placeholders;
 	long i = 0;
-	for (auto const& [$k, $item] : $complex_expr_arr.valueArray) {
+	for (const auto& [$k, $item] : $complex_expr_arr.valueArray) {
 		if (is_token((Mixed) $item)) {
 			_tmp = token((string) $item[0], (string) $item[1]);
 			array_push(_return, _tmp);
@@ -537,7 +551,7 @@ mixed_to_tokens_line_with_place_holders_rs mixed_to_tokens_line_with_place_holde
 			_map_placeholders);
 }
 bool in_array(Mixed _find, Mixed _arr) {
-	for (auto const& [_i, _v] : _arr.valueArray) {
+	for (const auto& [_i, _v] : _arr.valueArray) {
 		if ((Mixed) _v == _find)
 			return true;
 	}
@@ -549,7 +563,7 @@ Mixed array_values(Mixed _arr) {
 }
 Mixed replace_placeholders_recruisively(Mixed _arr,
 		map<string, Mixed> _map_placeholders) {
-	for (auto const& [_k, _v] : _arr.valueArray) {
+	for (const auto& [_k, _v] : _arr.valueArray) {
 		if (is_token((Mixed) _v) && _v[1] == "placeholder") {
 			_arr[_k] = _v[0];
 		} else if (((Mixed) _v).type == "a") {
